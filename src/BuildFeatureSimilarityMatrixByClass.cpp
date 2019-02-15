@@ -1202,11 +1202,21 @@ int main(int argc, char *argv[])
 	if(DEBUG)
 		cout << "Process " << current_process << " created the structures" << endl;
 	
-	double time_io = 0, time_basecases = 0;
+	double vtime_io[end-begin+1];
+	double vtime_basecases[end-begin+1];
+	double time_io = 0;
+	double time_basecases = 0;
+	
+	MPI_Barrier(MPI_COMM_WORLD);
+	double time_process = MPI_Wtime();
+	timelog.reset();
+	
+// 	cout << "Process\tThread\ttime_begin\ttime_io\ttime_basecases\tnumcells" << endl;
 	
 	// Read list of csv files
 	// Each process reads its csv files (in parallel)
-	#pragma omp parallel for shared(T, threadComs, threadDP, partialM) reduction(+ : time_io, time_basecases)
+	#pragma omp parallel for shared(T, threadComs, threadDP, partialM, time_io, time_basecases) schedule(dynamic) 
+//reduction(+ : time_io, time_basecases)
 	for(int i = begin; i <= end; ++i)
 	{
 		vector< Matrix<double> > mclasses;
@@ -1225,7 +1235,7 @@ int main(int argc, char *argv[])
 			Matrix<double> m;
 			vector<int> cell_classes;
 			
-			m.readFromCSV(inputfiles[i], class_names, cell_classes, true, num_features);	
+			m.readFromCSV(inputfiles[i], class_names, cell_classes, true, num_features);
 			
 			splitMatrixPerClass(m, cell_classes, mclasses);
 		}
@@ -1235,15 +1245,16 @@ int main(int argc, char *argv[])
 			mclasses[0].readFromCSV(inputfiles[i], true, num_features);
 		}
 		
-		time_io = MPI_Wtime() - time_begin;
+		vtime_io[i-begin] = MPI_Wtime() - time_process;
 		
- 		if(DEBUG)
+		if(DEBUG)
 		{
 			#pragma omp critical
-			cout << "Process " << current_process << " just read file " << inputfiles[i] << endl;	
+			cout << "Process " << current_process << " just read file " << inputfiles[i] << "(time_io = " << vtime_io[i-begin] << ")" << endl;
 		}
 		
-		time_begin = MPI_Wtime();
+// 		time_begin = MPI_Wtime();
+// 		MPI_Barrier();
 
 		// Each slave computes the T and S for all features in the current file
 		Hyperplane<double> Thyp   = T         .hyperplane(i-begin);
@@ -1252,14 +1263,37 @@ int main(int argc, char *argv[])
 		
 		computeTSComImprovedPerClass(mclasses, Thyp, Comhyp, DPhyp, partialM[i-begin]);
 		
-		time_basecases = MPI_Wtime() - time_begin;
+		vtime_basecases[i-begin] = MPI_Wtime() - time_process;
 		
 		if(DEBUG)
 		{
 			#pragma omp critical
-			cout << "Process " << current_process << " ended the computation of file " << inputfiles[i] << endl;
+			cout << "Process " << current_process << " ended the computation of file " << inputfiles[i] << "(time_basecases = " << time_basecases << ")" << endl;
 		}
+		
+		int total_cells = 0;
+		for(int j = 0; j < NUM_CLASSES; ++j)
+			total_cells += partialM[i-begin][j];
+		
+		#pragma omp critical
+		cout << current_process << "\t" << omp_get_thread_num() << "\t" << time_begin << "\t" << vtime_io[i-begin] << "\t" << vtime_basecases[i-begin] << "\t" << total_cells << endl;
 	}
+	
+	time_process = MPI_Wtime() - time_process;
+	cout << current_process << "\t" << -1 << "\t" << time_process << "\t" << time_process << "\t" << time_process << "\t" << -1 << endl;
+		
+	double time_waiting = MPI_Wtime();
+	MPI_Barrier(MPI_COMM_WORLD);
+	time_waiting = MPI_Wtime() - time_waiting;
+	
+	cout << current_process << "\t" << -2 << "\t" << time_waiting << "\t" << time_waiting << "\t" << time_waiting << "\t" << -1 << endl;
+	
+// 	for(int i = 0; i <= end-begin; ++i)
+// 	{
+// 		cout << "time_io, time_basecases:\t" << time_io[i] << "\t" << time_basecases[i] << endl;
+// 	}
+
+// cout << "Tick: " << MPI_Wtick() << endl;
 	
 	if(MEASURE_TIMES)
 	{
@@ -1267,6 +1301,12 @@ int main(int argc, char *argv[])
 		double sum_basecases = 0;
 		
 		timelog.addSyncTimeStamp("CSV files read and base cases computed");
+		
+		for(int i = 0; i <= end-begin; i++)
+		{
+			time_io += vtime_io[i];
+			time_basecases += vtime_basecases[i];
+		}
 		
 		MPI_Reduce(&time_io, &sum_io, 1, MPI_DOUBLE, MPI_SUM, MASTER_PROCESS, MPI_COMM_WORLD);
 		MPI_Reduce(&time_basecases, &sum_basecases, 1, MPI_DOUBLE, MPI_SUM, MASTER_PROCESS, MPI_COMM_WORLD);
