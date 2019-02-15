@@ -889,7 +889,9 @@ void Matrix<T>::readFromCSV(const std::string &filename, const std::vector<std::
 	}
 	else
 	{
-		readFromCSV(filename, class_names, classes, header, numcols);
+		std::ifstream mfile(filename.c_str());
+		
+		readFromCSV(mfile, class_names, classes, header, numcols);
 	}
 }
 
