@@ -11,7 +11,7 @@ DOCDIR= ./doc/
 DOXYFILE= $(DOCDIR)Doxyfile
 
 # Compiler options -Weffc++
-CFLAGS= -Wall -O2 -fopenmp -I$(INCDIR) -std=c++11 -lz -lboost_iostreams
+CFLAGS= -Wall -O2 -fopenmp -I$(INCDIR) -std=c++11 -lboost_iostreams -lz
 
 # Sources and Common clases sources
 CSOURCES= $(SRCDIR)Functions.cpp $(SRCDIR)TimeLog.cpp
@@ -30,10 +30,11 @@ EXECUTABLEC=$(BINDIR)BuildFeatureSimilarityMatrixByClass
 all: $(EXECUTABLEC)
 
 $(EXECUTABLEC): $(OBJECTSC) $(COBJECTS)
-	$(CC) $(CFLAGS) $(OBJECTSC) $(COBJECTS) -o $@
+	mkdir -p $(BINDIR)
+	$(CC) -o $@ $(OBJECTSC) $(COBJECTS) $(CFLAGS)
 
 .cpp.o:
-	$(CC) $(CFLAGS) -c $< -o $@
+	$(CC) -o $@ -c $< $(CFLAGS)
 	
 $(DOXYFILE):
 	cd $(DOCDIR)
