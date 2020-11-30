@@ -11,7 +11,7 @@ DOCDIR= ./doc/
 DOXYFILE= $(DOCDIR)Doxyfile
 
 # Compiler options -Weffc++
-CFLAGS= -Wall -O2 -fopenmp -I$(INCDIR) -std=c++11 -lboost_iostreams -lz
+CFLAGS= -Wall -g -O2 -fopenmp -I$(INCDIR) -std=c++11 -lboost_iostreams -lz
 
 # Sources and Common clases sources
 CSOURCES= $(SRCDIR)Functions.cpp $(SRCDIR)TimeLog.cpp

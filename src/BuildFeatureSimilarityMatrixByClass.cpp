@@ -1059,15 +1059,6 @@ int main(int argc, char *argv[])
 	if(provided < MPI_THREAD_FUNNELED)
 		cerr << "WARNING: the level of parallelism is lower than MPI_THREAD_FUNNELED" << endl;
 	
-	// Automatically use one thread per core
-	omp_set_num_threads(omp_get_num_procs());
-
-	if(DEBUG)
-	{
-		#pragma omp critical
-		cout << "Number of threads set to " << omp_get_max_threads() << endl;
-	}
-	
 	if(argc < 4)
 	{
 		exit("Syntax error: mpirun -np <processes> executable [--classfile <classfile.txt> | --numclasses <num>] [--outputdir <path>] [--debug] [--times] {--filelist <list.txt> | <file1.csv> ...}", -1);
@@ -1135,6 +1126,15 @@ int main(int argc, char *argv[])
 	{
 		NUM_CLASSES = 1;
 		class_names.push_back("Total");
+	}
+	
+	// Automatically use one thread per core
+	omp_set_num_threads(omp_get_num_procs());
+
+	if(DEBUG)
+	{
+		#pragma omp critical
+		cout << "Number of threads set to " << omp_get_max_threads() << endl;
 	}
 	
 	int num_files = inputfiles.size();
